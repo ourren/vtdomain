@@ -8,6 +8,7 @@ import simplejson
 import urllib
 import urllib2
 import sqlite3
+import time
 
 uv = "https://www.virustotal.com/vtapi/v2/url/report"
 apikey = "add you own api"
@@ -36,35 +37,37 @@ def check(url):
     if row[0] == 0:
         parameters = {"resource": url, "apikey": apikey}
         data = urllib.urlencode(parameters)
-        req = urllib2.Request(uv, data)
-        response = urllib2.urlopen(req)
-        json = response.read()
-        response_dict = simplejson.loads(json)
-        positives = response_dict.get("positives")
-        print url, positives
-        c.execute("""insert into domain(domain, positive) values(?,?)""", (url, positives))
-        db.commit()
-        id = c.lastrowid
-        scans = response_dict["scans"]
-        for (k, v) in vtdic.items():
-            try:
+        try:
+            req = urllib2.Request(uv, data)
+            response = urllib2.urlopen(req)
+            json = response.read()
+            response_dict = simplejson.loads(json)
+            positives = response_dict.get("positives")
+            print url, positives
+            c.execute("""insert into domain(domain, positive) values(?,?)""", (url, positives))
+            db.commit()
+            id = c.lastrowid
+            scans = response_dict["scans"]
+            for (k, v) in vtdic.items():
                 usql = "UPDATE domain set " + v + " = '" + scans[k]["result"] + "' where id="+ str(id)
                 c.execute(usql)
-            except:
-                pass
-        db.commit()
+            db.commit()
+            return True
+        except:
+            return True
     else:
         print 'already checked..'
+        return False
 
 
 def main():
     print '[*] App: vtdomain check'
-    print '[*] Version: V1.0(20150503)'
+    print '[*] Version: V1.1(20150514)'
     table_mdomain()
-    if len(sys.argv) == 2:
-        check(sys.argv[1])
-    else:
-        exit()
+    for line in open("domain").readlines():
+        line = line.strip()
+        if check(line):
+            time.sleep(15)
 
 if __name__ == '__main__':
     main()
